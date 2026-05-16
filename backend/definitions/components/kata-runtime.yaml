@@ -1,0 +1,122 @@
+# Kata Containers Runtime
+# RuntimeClass that lets pods opt into kernel-level isolation via microVMs.
+# Each pod marked with `runtimeClassName: kata` runs inside its own Cloud
+# Hypervisor microVM — namespace+cgroup isolation is replaced by a real VM
+# boundary, while the user-facing API is still pod/container.
+#
+# REQUIRES the Talos `siderolabs/kata-containers` system extension to be
+# installed on each worker node (built into the installer image via
+# factory.talos.dev). Without the extension the runtime handler is missing
+# and pods will get stuck in ContainerCreating. This component only deploys
+# the RuntimeClass — node-level install is out of scope.
+
+id: kata-runtime
+name: Kata Containers Runtime
+description: RuntimeClass for running pods inside Kata microVMs (kernel-level isolation). Requires the siderolabs/kata-containers Talos system extension on each node.
+category: virtualization
+categoryName: Virtualization
+categoryDescription: Compute virtualization (KubeVirt, Kata)
+icon: "🛡️"
+priority: 25
+docsUrl: https://github.com/kata-containers/kata-containers
+note: |
+  Node-level install is via Talos system extension `siderolabs/kata-containers`
+  (factory.talos.dev). This component only deploys the RuntimeClass + tolerations
+  so the cluster knows how to schedule kata-runtime pods.
+
+chartType: custom
+namespace: kube-system
+releaseName: kata-runtime
+createNamespace: false
+timeout: 5m
+
+defaultValues:
+  # Handler name registered in /etc/cri/conf.d/10-kata-containers.part by the
+  # Talos extension. SideroLabs ships only the `kata` handler (Cloud Hypervisor
+  # default); add others here if a future extension version ships them.
+  handler: kata
+
+  # PodOverhead — Kubernetes accounts for VMM overhead per pod when scheduling.
+  # Cloud Hypervisor has ~120 MiB per-pod overhead (kernel + VMM RSS).
+  overhead:
+    enabled: true
+    memory: "120Mi"
+    cpu: "50m"
+
+  # Scheduling: optionally restrict kata pods to nodes that advertise a label.
+  # Off by default (works on any node that has the extension installed).
+  # When enabled, pods using this RuntimeClass will only schedule onto nodes
+  # carrying `kata.runtime.io/enabled=true`. Useful if some node pools don't
+  # have the extension installed yet.
+  nodeSelector:
+    enabled: false
+    label: "kata.runtime.io/enabled"
+    value: "true"
+
+jsonSchema:
+  type: object
+  properties:
+    handler:
+      type: string
+      title: Containerd Runtime Handler
+      description: Must match a handler registered by the kata extension in containerd's CRI config.
+      default: kata
+    overhead:
+      type: object
+      title: Pod Overhead (VMM bookkeeping)
+      description: Kubernetes scheduler reserves this per kata pod on top of container requests.
+      properties:
+        enabled:
+          type: boolean
+          title: Enable PodOverhead
+          default: true
+        memory:
+          type: string
+          title: Memory overhead
+          default: "120Mi"
+        cpu:
+          type: string
+          title: CPU overhead
+          default: "50m"
+    nodeSelector:
+      type: object
+      title: Node Selector
+      description: If enabled, kata pods only schedule onto labeled nodes.
+      properties:
+        enabled:
+          type: boolean
+          title: Restrict to labeled nodes
+          default: false
+        label:
+          type: string
+          title: Required label key
+          default: "kata.runtime.io/enabled"
+        value:
+          type: string
+          title: Required label value
+          default: "true"
+
+uiSchema:
+  overhead:
+    ui:collapsed: false
+  nodeSelector:
+    ui:collapsed: true
+
+templates:
+  runtimeclass.yaml: |
+    apiVersion: node.k8s.io/v1
+    kind: RuntimeClass
+    metadata:
+      name: {{ .Values.handler }}
+    handler: {{ .Values.handler }}
+    {{- if .Values.overhead.enabled }}
+    overhead:
+      podFixed:
+        memory: {{ .Values.overhead.memory | quote }}
+        cpu: {{ .Values.overhead.cpu | quote }}
+    {{- end }}
+    {{- if .Values.nodeSelector.enabled }}
+    scheduling:
+      nodeSelector:
+        {{ .Values.nodeSelector.label }}: {{ .Values.nodeSelector.value | quote }}
+    {{- end }}
