@@ -32,6 +32,7 @@ defaultValues:
   ingress:
     enabled: false
     host: ""
+    className: nginx
     tls: false
   persistence:
     enabled: false
@@ -89,6 +90,10 @@ jsonSchema:
         host:
           type: string
           title: Hostname
+        className:
+          type: string
+          title: Ingress class
+          default: nginx
         tls:
           type: boolean
           title: Enable TLS
@@ -247,7 +252,7 @@ templates:
             cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | default "letsencrypt-production" }}
             {{- end }}
         spec:
-          ingressClassName: nginx
+          ingressClassName: {{ .Values.ingress.className | default "nginx" }}
           rules:
             - host: {{ .Values.ingress.host }}
               http:
