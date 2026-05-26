@@ -1,3 +1,9 @@
+{{ '{{- $url := .Values.gitRepository.url -}}' }}
+{{ '{{- /* Flux GitRepository CRD requires url matching ^(http|https|ssh)://.*$ ; convert SCP-style git@host:path → ssh://git@host/path */ -}}' }}
+{{ '{{- if hasPrefix "git@" $url -}}' }}
+  {{ '{{- $parts := splitn ":" 2 (trimPrefix "git@" $url) -}}' }}
+  {{ '{{- $url = printf "ssh://git@%s/%s" $parts._0 $parts._1 -}}' }}
+{{ '{{- end }}' }}
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -5,7 +11,7 @@ metadata:
   namespace: {{ '{{ .Release.Namespace }}' }}
 spec:
   interval: {{ '{{ .Values.gitRepository.interval }}' }}
-  url: {{ '{{ .Values.gitRepository.url }}' }}
+  url: {{ '{{ $url }}' }}
   ref:
     branch: {{ '{{ .Values.gitRepository.branch }}' }}
   {{ '{{- if .Values.gitCredentials.enabled }}' }}
