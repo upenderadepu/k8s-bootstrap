@@ -52,6 +52,19 @@ defaultValues:
       exposedPort: 443
       expose:
         default: true
+    # Dedicated TCP-passthrough entry point for tenant kube-apiservers.
+    # kubevirt-ui creates an IngressRouteTCP per tenant that matches
+    # HostSNI(`<tenant>.<ingress-domain>`) and forwards to the Kamaji
+    # TCP Service on port 6443 with `tls.passthrough: true`. The port
+    # matches Kamaji's unified NetworkProfile.Port (default 6443), so
+    # workers connect with `<advertiseAddress>:6443` per cluster-info.
+    # No TLS termination at the entry point — the apiserver's cert
+    # is presented directly to the worker.
+    kubeapiserver:
+      port: 6443
+      exposedPort: 6443
+      expose:
+        default: true
   service:
     type: LoadBalancer
   metrics:
