@@ -523,7 +523,8 @@ class RepoGenerator:
     def _generate_vendor_script(self, repo_path: Path, components: List[Dict[str, Any]]):
         """Generate vendor-charts.sh for chart vendoring."""
         charts = []
-        
+        manifest_entries = []
+
         # Add flux-operator
         charts.append({
             "id": "flux-operator",
@@ -532,18 +533,30 @@ class RepoGenerator:
             "version": self.bootstrap_generator.FLUX_OPERATOR_VERSION,
             "repository": "oci://ghcr.io/controlplaneio-fluxcd/charts"
         })
-        
+
         # Add component charts
         for comp in components:
             defn = comp["definition"]
-            # Skip custom, bootstrap, and manifest-based components
-            if defn.get("chartType") in ("custom", "manifest") or defn.get("bootstrapInstall"):
+            if defn.get("bootstrapInstall") or defn.get("chartType") == "custom":
                 continue
-            
+
+            # Manifest-based components: collect raw URL fetches instead of helm pull
+            if defn.get("chartType") == "manifest":
+                for entry in defn.get("manifests") or []:
+                    if not entry.get("url"):
+                        continue
+                    manifest_entries.append({
+                        "id": defn["id"],
+                        "category": defn.get("category", "apps"),
+                        "name": entry.get("name") or defn["id"],
+                        "url": entry["url"],
+                    })
+                continue
+
             upstream = defn.get("upstream", {})
             if not upstream.get("repository"):
                 continue
-            
+
             charts.append({
                 "id": defn["id"],
                 "category": defn.get("category", "apps"),
@@ -551,11 +564,16 @@ class RepoGenerator:
                 "version": upstream.get("version", "latest"),
                 "repository": upstream["repository"]
             })
-        
+
         # Add tenant addon charts (resolved by _generate_tenant_addons)
         tenant_charts = getattr(self, '_tenant_chart_specs', [])
-        
-        content = render("scripts/vendor-charts.sh.j2", charts=charts, tenant_charts=tenant_charts)
+
+        content = render(
+            "scripts/vendor-charts.sh.j2",
+            charts=charts,
+            tenant_charts=tenant_charts,
+            manifest_entries=manifest_entries,
+        )
         script_path = repo_path / "vendor-charts.sh"
         script_path.write_text(content)
         os.chmod(script_path, 0o755)

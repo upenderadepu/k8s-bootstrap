@@ -8,6 +8,8 @@ import logging
 import subprocess
 import shutil
 import tempfile
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 import yaml
@@ -35,9 +37,64 @@ class ChartGenerator:
         
         if definition.get("chartType") == "custom":
             self._gen_custom(definition, values, raw_overrides, chart_path)
+        elif definition.get("chartType") == "manifest":
+            self._gen_manifest(definition, chart_path)
         else:
             self._gen_wrapper(definition, values, raw_overrides, chart_path)
         return chart_path
+
+    def _gen_manifest(self, defn: Dict, path: Path):
+        """Generate a chart that wraps raw Kubernetes manifests downloaded from URLs.
+
+        Used for components that ship a single install.yaml (e.g. upstream Gateway
+        API release manifest). Each `manifests[].url` is fetched into
+        `templates/<name>.yaml` so Flux HelmRelease applies the manifests as-is.
+        Falls back to a placeholder when offline / vendor disabled.
+        """
+        version = defn.get("version", "0.0.1").lstrip("v")
+        self._yaml(path / "Chart.yaml", {
+            "apiVersion": "v2",
+            "name": defn["id"],
+            "version": version,
+            "appVersion": defn.get("appVersion", version),
+            "description": defn.get("description", ""),
+        })
+        self._yaml(path / "values.yaml", {})
+
+        tpl = path / "templates"
+        tpl.mkdir(exist_ok=True)
+
+        manifests = defn.get("manifests") or []
+        if not manifests:
+            (tpl / "EMPTY.yaml").write_text(
+                f"# {defn['id']}: no manifests defined in component definition\n"
+            )
+            return
+
+        for entry in manifests:
+            name = entry.get("name") or defn["id"]
+            url = entry.get("url")
+            target = tpl / f"{name}.yaml"
+            if not url:
+                target.write_text(f"# {name}: no URL configured\n")
+                continue
+            if not self.vendor_charts:
+                target.write_text(
+                    f"# {name}: NEEDS VENDORING\n"
+                    f"# Run vendor-charts.sh or fetch manually:\n"
+                    f"# curl -L {url} > {target.name}\n"
+                )
+                continue
+            try:
+                with urllib.request.urlopen(url, timeout=60) as resp:
+                    body = resp.read().decode("utf-8")
+                target.write_text(body)
+                logger.info(f"Vendored manifest {name} from {url} → {target}")
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                logger.warning(f"Failed to vendor manifest {name} from {url}: {exc}")
+                target.write_text(
+                    f"# {name}: download failed from {url}\n# Error: {exc}\n"
+                )
     
     def _gen_wrapper(self, defn: Dict, values: Dict, raw: str, path: Path):
         """Generate wrapper chart + vendor upstream"""

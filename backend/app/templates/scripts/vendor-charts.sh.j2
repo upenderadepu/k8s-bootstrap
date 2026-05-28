@@ -79,6 +79,41 @@ vendor_chart() {
 {% for chart in charts %}
 vendor_chart "{{ chart.name }}" "{{ chart.version }}" "{{ chart.repository }}" "{{ chart.category }}"
 {% endfor %}
+
+{% if manifest_entries %}
+# ============================================================================
+# Manifest-based components — fetch raw upstream YAML into chart templates/
+# ============================================================================
+
+vendor_manifest() {
+    local chart_id="$1"
+    local category="$2"
+    local name="$3"
+    local url="$4"
+
+    local dest_dir="${CHARTS_DIR}/${category}/${chart_id}/templates"
+    local dest="${dest_dir}/${name}.yaml"
+
+    mkdir -p "$dest_dir"
+
+    if [[ -s "$dest" ]] && ! grep -q "^# .*NEEDS VENDORING" "$dest"; then
+        ok "manifest $chart_id/$name already vendored"
+        return 0
+    fi
+
+    log "Fetching manifest $name for $chart_id from $url..."
+    if curl -fsSL --max-time 60 "$url" -o "$dest"; then
+        ok "manifest $chart_id/$name vendored"
+    else
+        echo "Failed to download $url" >&2
+        return 1
+    fi
+}
+
+{% for m in manifest_entries %}
+vendor_manifest "{{ m.id }}" "{{ m.category }}" "{{ m.name }}" "{{ m.url }}"
+{% endfor %}
+{% endif %}
 {% if tenant_charts %}
 
 # ============================================================================
