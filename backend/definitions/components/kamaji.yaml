@@ -37,7 +37,7 @@ dependsOn:
 
 defaultValues:
   image:
-    tag: 26.3.2-edge
+    tag: 26.5.5-edge
   # Disable built-in etcd - we use PostgreSQL via kine
   etcd:
     deploy: false
