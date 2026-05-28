@@ -78,42 +78,12 @@ uiSchema:
     ui:collapsed: false
 
 # --- Tenant Addon Configuration ---
-# In tenant clusters: only CSI driver, no satellites/controller (connects to host)
-tenantAddon: true
-tenantConfig:
-  order: 2
-  namespace: o0-piraeus
-  discovery_type: storage
-  required: false
-  default: true
-  defaultValues:
-    linstor-cluster:
-      linstorCluster:
-        enabled: false
-      csiDriver:
-        enabled: true
-        controllerEndpoint: ""
-      haController:
-        enabled: false
-  parameters:
-    - id: LINSTOR_API_URL
-      name: Linstor Controller URL
-      type: string
-      default: ""
-      options: []
-      auto_discover: true
-      valuesPath: "linstor-cluster.csiDriver.controllerEndpoint"
-    - id: STORAGE_POOL
-      name: Storage Pool
-      type: select
-      default: ""
-      options: []
-      auto_discover: true
-      valuesPath: ""
-    - id: REPLICA_COUNT
-      name: Replica Count
-      type: select
-      default: "2"
-      options: ["1", "2", "3"]
-      auto_discover: false
-      valuesPath: ""
+# REMOVED — was offered as a tenant addon ("CSI-only Piraeus inside tenant"),
+# but tenant clusters don't have Piraeus CRDs / kernel modules. Tenant
+# persistent storage now goes through kubevirt-csi-driver, which forwards
+# PVCs to the host cluster (where Piraeus actually lives). See the
+# `kubevirt-csi-driver` component for the replacement addon.
+#
+# This component itself stays for the HOST cluster (operators still need to
+# install/configure LinstorCluster on the underlying lab cluster) — only the
+# `tenantAddon: true` flag is dropped.

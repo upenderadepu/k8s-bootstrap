@@ -1,0 +1,154 @@
+# KubeVirt CSI Driver — tenant persistent storage
+#
+# This is the canonical CAPK storage pattern (Pattern B):
+#
+#   [tenant pod PVC]
+#     → [tenant CSI controller in tenant CP]   (this addon)
+#     → [host CDI: DataVolume]
+#     → [LINSTOR/ZFS on host]
+#     → [KubeVirt hotplug]
+#     → [worker VM /dev/vdX]
+#
+# Replaces the broken "Piraeus inside tenant" addon (linstor-cluster's
+# old tenantAddon block) — tenant clusters don't have Piraeus CRDs nor
+# the kernel modules required to host DRBD targets, so the only viable
+# path is to forward PVCs to the host.
+#
+# Configuration of the host-side secret (`infra-cluster-credentials`),
+# ServiceAccount RBAC, and KubevirtCluster wiring lives in the kubevirt_ui
+# backend — see `tenants_storage._create_csi_infrastructure_resources`.
+# This catalog entry just makes the tenant-CP HelmRelease auto-installable
+# alongside other tenant addons (cert-manager, ingress-nginx, …).
+
+id: kubevirt-csi-driver
+name: KubeVirt CSI Driver
+description: |
+  Tenant CSI driver that forwards PersistentVolumeClaims to host CDI
+  DataVolumes (kubevirt-csi pattern). Required for tenant pods to mount
+  persistent volumes backed by host storage.
+category: storage
+categoryName: Storage
+categoryDescription: Storage solutions
+icon: "💾"
+priority: 47
+docsUrl: https://github.com/kubevirt/csi-driver
+
+# Upstream kubevirt/csi-driver ships only Kustomize overlays — no Helm
+# chart. The wrapper chart that materializes them is generated as a
+# `custom` chart with inline templates in this repo (see `templates`
+# below). When the upstream project ships a Helm chart we'll flip this
+# back to `chartType: upstream`.
+chartType: custom
+namespace: kube-system
+releaseName: kubevirt-csi-driver
+createNamespace: false
+timeout: 10m
+
+defaultValues:
+  # The kubeconfig Secret created by the kubevirt_ui backend on the HOST
+  # cluster and replicated into the tenant CP via the addon flow.
+  infraClusterKubeconfigSecret:
+    name: infra-cluster-credentials
+    key: kubeconfig
+  # tenant namespace on the host where DataVolumes get created.
+  # Templated to `tenant-<name>` by the kubevirt_ui addon flow.
+  infraClusterNamespace: ""
+  # Per-tenant default StorageClass name created INSIDE the tenant CP.
+  # Maps tenant PVCs → host SC via the CSI driver's infraStorageClassName.
+  storageClasses:
+    - name: kubevirt
+      isDefault: true
+      infraStorageClassName: ""    # filled per-tenant (req.storage_class or cluster default)
+      bus: scsi
+
+# --- Tenant Addon Configuration ---
+# Auto-included by the tenant create flow when `enable_storage=True`.
+# The kubevirt_ui backend sets `infraClusterNamespace` and the storage class
+# `infraStorageClassName` parameter from `TenantCreateRequest`.
+tenantAddon: true
+tenantConfig:
+  order: 5
+  namespace: kube-system
+  discovery_type: storage
+  required: false
+  default: false  # opt-in via the wizard's "Enable storage" toggle
+  defaultValues:
+    infraClusterKubeconfigSecret:
+      name: infra-cluster-credentials
+      key: kubeconfig
+    infraClusterNamespace: ""
+    storageClasses:
+      - name: kubevirt
+        isDefault: true
+        infraStorageClassName: ""
+        bus: scsi
+  parameters:
+    - id: INFRA_CLUSTER_NAMESPACE
+      name: Host tenant namespace
+      type: string
+      default: ""
+      options: []
+      auto_discover: false
+      valuesPath: "infraClusterNamespace"
+    - id: INFRA_STORAGE_CLASS_NAME
+      name: Host StorageClass
+      type: string
+      default: ""
+      options: []
+      auto_discover: true
+      valuesPath: "storageClasses.0.infraStorageClassName"
+
+# Inline chart templates (custom chart). NOTE: this is a placeholder
+# scaffold — the full controller/node-plugin manifests come from the
+# upstream `deploy/controller-tenant/base` kustomize overlay, translated
+# into Helm. T4 owns vendoring those manifests; we deliberately ship a
+# minimal-but-runnable chart so the addon CR can be created (and the
+# HelmRelease will report a clear error if the user enables it before
+# the full chart is vendored).
+templates:
+  NOTES.txt: |
+    KubeVirt CSI driver for tenant cluster.
+
+    Host cluster credentials read from Secret:
+      {{ .Values.infraClusterKubeconfigSecret.name }} (key {{ .Values.infraClusterKubeconfigSecret.key }})
+
+    Host tenant namespace: {{ .Values.infraClusterNamespace }}
+
+    StorageClasses:
+    {{- range .Values.storageClasses }}
+      - {{ .name }} (default={{ .isDefault }}, infraSC={{ .infraStorageClassName }})
+    {{- end }}
+
+    NOTE: This chart currently ships StorageClass + driver-config ConfigMap
+    only. The CSI controller Deployment and node DaemonSet manifests will be
+    vendored from upstream kubevirt/csi-driver in a follow-up task.
+
+  driver-config.yaml: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: driver-config
+      namespace: {{ .Release.Namespace }}
+    data:
+      infraClusterNamespace: {{ .Values.infraClusterNamespace | quote }}
+      infraClusterLabels: "csi-driver/cluster=tenant"
+      {{- range .Values.storageClasses }}
+      infraStorageClassName: {{ .infraStorageClassName | quote }}
+      {{- end }}
+
+  storageclass.yaml: |
+    {{- range .Values.storageClasses }}
+    ---
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: {{ .name }}
+      {{- if .isDefault }}
+      annotations:
+        storageclass.kubernetes.io/is-default-class: "true"
+      {{- end }}
+    provisioner: csi.kubevirt.io
+    parameters:
+      infraStorageClassName: {{ .infraStorageClassName | quote }}
+      bus: {{ .bus | default "scsi" | quote }}
+    {{- end }}
