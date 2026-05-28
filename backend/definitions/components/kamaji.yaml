@@ -33,6 +33,7 @@ requiresCrds:
 dependsOn:
   - kamaji-crds
   - cert-manager
+  - gateway-api-experimental
 
 defaultValues:
   image:

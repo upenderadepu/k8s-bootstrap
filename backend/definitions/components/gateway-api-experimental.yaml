@@ -1,0 +1,40 @@
+# Gateway API (Experimental Channel)
+# Installs Gateway API CRDs + controller from the upstream experimental release manifest.
+# The experimental channel includes GatewayClass, Gateway, HTTPRoute, TCPRoute, TLSRoute,
+# GRPCRoute, and ReferenceGrant — all required for Kamaji TCP-passthrough routes when
+# Traefik / Contour Gateway API mode is used.
+# Docs: https://gateway-api.sigs.k8s.io/
+
+id: gateway-api-experimental
+name: Gateway API (Experimental)
+description: Kubernetes Gateway API CRDs — experimental channel with TCPRoute/TLSRoute support required by Kamaji tenant ingress
+category: networking
+categoryName: Networking
+categoryDescription: CNI, ingress, and network policies
+icon: "🔀"
+priority: 5
+hidden: true
+docsUrl: https://gateway-api.sigs.k8s.io/
+
+# No Helm chart upstream — apply the official release manifest directly
+chartType: manifest
+namespace: gateway-system
+createNamespace: true
+timeout: 5m
+
+version: "1.0.0"
+appVersion: "v1.0.0"
+
+manifests:
+  - name: gateway-api-experimental
+    url: https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.0.0/experimental-install.yaml
+
+dependsOn: []
+
+defaultValues: {}
+
+jsonSchema:
+  type: object
+  properties: {}
+
+uiSchema: {}

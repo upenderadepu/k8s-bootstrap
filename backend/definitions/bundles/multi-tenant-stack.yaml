@@ -90,6 +90,11 @@ components:
     hidden: true
     description: Kamaji CRDs
 
+  - id: gateway-api-experimental
+    required: true
+    hidden: true
+    description: Gateway API experimental CRDs (TCPRoute/TLSRoute) for tenant API server ingress
+
   - id: kamaji
     required: true
     hidden: true
@@ -545,6 +550,7 @@ install_order:
   - cnpg-cluster
   # Multi-tenancy
   - kamaji-crds
+  - gateway-api-experimental
   - kamaji
   - kamaji-datastore
   # Cluster API
