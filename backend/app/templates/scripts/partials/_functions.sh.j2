@@ -31,14 +31,20 @@ check_nodes_ready() {
 }
 
 {% if cni_bootstrap_component %}
-# Bootstrap CNI for clusters without CNI (e.g., Talos with cni: none)
+# Bootstrap CNI for clusters without CNI (e.g., Talos with cni: none).
+#
+# Don't rely on node Ready status — Talos with `cluster.network.cni.name: none`
+# leaves kubelet reporting Ready immediately (no cloud-controller sets the
+# NetworkUnavailable taint, so the default is Ready=True even though pods
+# can't network). Instead check whether our target CNI helm release already
+# exists, and skip only if it does.
 bootstrap_cni() {
-    if check_nodes_ready; then
-        ok "Nodes are Ready - CNI already installed"
+    if helm list -A -q --filter "^{{ cni_bootstrap_component }}$" 2>/dev/null | grep -qx "{{ cni_bootstrap_component }}"; then
+        ok "{{ cni_bootstrap_component }} helm release already present - skipping CNI bootstrap"
         return 0
     fi
-    
-    warn "Nodes are NotReady - bootstrapping CNI directly..."
+
+    warn "{{ cni_bootstrap_component }} not installed yet - bootstrapping CNI directly..."
     
     local cni_chart="${CHARTS_DIR}/networking/{{ cni_bootstrap_component }}"
     local cni_subchart="$cni_chart/charts/{{ cni_bootstrap_component }}"
