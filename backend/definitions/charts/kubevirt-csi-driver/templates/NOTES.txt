@@ -1,0 +1,52 @@
+KubeVirt CSI Driver installed in namespace {{ .Release.Namespace }}.
+
+HOST CLUSTER CREDENTIALS
+  Secret : {{ .Values.infraClusterKubeconfigSecret.name | default "infra-cluster-credentials" }}
+  Key    : {{ .Values.infraClusterKubeconfigSecret.key | default "kubeconfig" }}
+
+HOST TENANT NAMESPACE
+  {{ .Values.infraClusterNamespace | default "(not set — set infraClusterNamespace in values)" }}
+
+STORAGE CLASSES
+{{- range .Values.storageClasses }}
+  {{ .name }} (default={{ .isDefault }}, infraSC={{ .infraStorageClassName | default "(none)" }})
+{{- end }}
+
+─────────────────────────────────────────────────────────────────────────────
+VERIFY INSTALLATION
+
+  # Controller pod running in tenant control plane:
+  kubectl -n {{ .Release.Namespace }} get pods -l app=kubevirt-csi-driver
+
+  # Node plugin DaemonSet healthy on all workers:
+  kubectl -n {{ .Release.Namespace }} get daemonset kubevirt-csi-node
+
+  # CSIDriver registered:
+  kubectl get csidriver csi.kubevirt.io
+
+  # StorageClass(es) present:
+  kubectl get storageclass
+
+  # Smoke-test — create a PVC and verify it binds:
+  kubectl apply -f - <<'EOF'
+  apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: csi-test-pvc
+  spec:
+    accessModes: [ReadWriteOnce]
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: {{ (index .Values.storageClasses 0).name | default "kubevirt" }}
+  EOF
+  kubectl wait --for=condition=Bound pvc/csi-test-pvc --timeout=120s
+
+─────────────────────────────────────────────────────────────────────────────
+VOLUME SNAPSHOTS
+
+  Snapshots are DISABLED (snapshots.enabled=false).
+  To enable, first install the external-snapshotter CRDs (e.g. via the
+  external-snapshotter component), then upgrade this release with:
+
+    --set snapshots.enabled=true

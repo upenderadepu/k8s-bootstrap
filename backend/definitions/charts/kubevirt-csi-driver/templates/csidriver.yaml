@@ -1,0 +1,15 @@
+{{- /*
+  CSIDriver — cluster-scoped object that registers the kubevirt CSI plugin.
+  Source: kubevirt/csi-driver deploy/tenant/base/deploy.yaml
+*/}}
+---
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: csi.kubevirt.io
+  labels:
+    app: kubevirt-csi-driver
+spec:
+  attachRequired: true
+  podInfoOnMount: true
+  fsGroupPolicy: ReadWriteOnceWithFSType

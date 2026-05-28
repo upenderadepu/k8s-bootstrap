@@ -1,0 +1,44 @@
+# kubevirt-csi-driver — default values
+# All real per-tenant values are injected via HelmRelease by the addon flow.
+# These defaults allow standalone `helm template` / `helm lint` to succeed.
+
+# Container images
+# kubevirt-csi-driver publishes only `latest`; sidecars use the OpenShift 4.22 release set.
+images:
+  csiDriver: quay.io/kubevirt/kubevirt-csi-driver:latest
+  provisioner: quay.io/openshift/origin-csi-external-provisioner:4.22.0
+  attacher: quay.io/openshift/origin-csi-external-attacher:4.22.0
+  snapshotter: quay.io/openshift/origin-csi-external-snapshotter:4.22.0
+  resizer: quay.io/openshift/origin-csi-external-resizer:4.22.0
+  livenessProbe: quay.io/openshift/origin-csi-livenessprobe:4.22.0
+  nodeDriverRegistrar: quay.io/openshift/origin-csi-node-driver-registrar:4.22.0
+
+# Secret (in the TENANT control plane) holding the HOST cluster kubeconfig.
+# Created / replicated by the kubevirt_ui addon flow.
+infraClusterKubeconfigSecret:
+  name: infra-cluster-credentials
+  key: kubeconfig
+
+# Namespace on the HOST cluster where the driver creates DataVolumes.
+# Templated to `tenant-<name>` by the addon flow.
+infraClusterNamespace: ""
+
+# Labels applied to host-cluster resources created by the driver.
+infraClusterLabels: "csi-driver/cluster=tenant"
+
+# Optional: restrict which host StorageClass the driver may use.
+# Leave empty to allow any class.
+infraStorageClassEnforcement: ""
+
+# StorageClasses to create inside the tenant cluster.
+storageClasses:
+  - name: kubevirt
+    isDefault: true
+    # Host StorageClass that backs this tenant SC.  Filled by the addon flow.
+    infraStorageClassName: ""
+    bus: scsi
+
+# VolumeSnapshotClass — requires external-snapshotter CRDs to be installed
+# separately (e.g. via the external-snapshotter component).
+snapshots:
+  enabled: false

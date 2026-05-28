@@ -45,14 +45,33 @@ createNamespace: false
 timeout: 10m
 
 defaultValues:
+  # Container images (kubevirt-csi-driver publishes only `latest`;
+  # all OpenShift CSI sidecars pinned to 4.22 release set).
+  images:
+    csiDriver: quay.io/kubevirt/kubevirt-csi-driver:latest
+    provisioner: quay.io/openshift/origin-csi-external-provisioner:4.22.0
+    attacher: quay.io/openshift/origin-csi-external-attacher:4.22.0
+    snapshotter: quay.io/openshift/origin-csi-external-snapshotter:4.22.0
+    resizer: quay.io/openshift/origin-csi-external-resizer:4.22.0
+    livenessProbe: quay.io/openshift/origin-csi-livenessprobe:4.22.0
+    nodeDriverRegistrar: quay.io/openshift/origin-csi-node-driver-registrar:4.22.0
+
   # The kubeconfig Secret created by the kubevirt_ui backend on the HOST
   # cluster and replicated into the tenant CP via the addon flow.
   infraClusterKubeconfigSecret:
     name: infra-cluster-credentials
     key: kubeconfig
-  # tenant namespace on the host where DataVolumes get created.
+
+  # Namespace on the HOST cluster where DataVolumes get created.
   # Templated to `tenant-<name>` by the kubevirt_ui addon flow.
   infraClusterNamespace: ""
+
+  # Labels applied to host-cluster resources created by the driver.
+  infraClusterLabels: "csi-driver/cluster=tenant"
+
+  # Optional: restrict which host StorageClass the driver may use.
+  infraStorageClassEnforcement: ""
+
   # Per-tenant default StorageClass name created INSIDE the tenant CP.
   # Maps tenant PVCs → host SC via the CSI driver's infraStorageClassName.
   storageClasses:
@@ -60,6 +79,10 @@ defaultValues:
       isDefault: true
       infraStorageClassName: ""    # filled per-tenant (req.storage_class or cluster default)
       bus: scsi
+
+  # VolumeSnapshotClass — requires external-snapshotter CRDs (separate component).
+  snapshots:
+    enabled: false
 
 # --- Tenant Addon Configuration ---
 # Auto-included by the tenant create flow when `enable_storage=True`.
@@ -77,11 +100,15 @@ tenantConfig:
       name: infra-cluster-credentials
       key: kubeconfig
     infraClusterNamespace: ""
+    infraClusterLabels: "csi-driver/cluster=tenant"
+    infraStorageClassEnforcement: ""
     storageClasses:
       - name: kubevirt
         isDefault: true
         infraStorageClassName: ""
         bus: scsi
+    snapshots:
+      enabled: false
   parameters:
     - id: INFRA_CLUSTER_NAMESPACE
       name: Host tenant namespace
@@ -98,57 +125,6 @@ tenantConfig:
       auto_discover: true
       valuesPath: "storageClasses.0.infraStorageClassName"
 
-# Inline chart templates (custom chart). NOTE: this is a placeholder
-# scaffold — the full controller/node-plugin manifests come from the
-# upstream `deploy/controller-tenant/base` kustomize overlay, translated
-# into Helm. T4 owns vendoring those manifests; we deliberately ship a
-# minimal-but-runnable chart so the addon CR can be created (and the
-# HelmRelease will report a clear error if the user enables it before
-# the full chart is vendored).
-templates:
-  NOTES.txt: |
-    KubeVirt CSI driver for tenant cluster.
-
-    Host cluster credentials read from Secret:
-      {{ .Values.infraClusterKubeconfigSecret.name }} (key {{ .Values.infraClusterKubeconfigSecret.key }})
-
-    Host tenant namespace: {{ .Values.infraClusterNamespace }}
-
-    StorageClasses:
-    {{- range .Values.storageClasses }}
-      - {{ .name }} (default={{ .isDefault }}, infraSC={{ .infraStorageClassName }})
-    {{- end }}
-
-    NOTE: This chart currently ships StorageClass + driver-config ConfigMap
-    only. The CSI controller Deployment and node DaemonSet manifests will be
-    vendored from upstream kubevirt/csi-driver in a follow-up task.
-
-  driver-config.yaml: |
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: driver-config
-      namespace: {{ .Release.Namespace }}
-    data:
-      infraClusterNamespace: {{ .Values.infraClusterNamespace | quote }}
-      infraClusterLabels: "csi-driver/cluster=tenant"
-      {{- range .Values.storageClasses }}
-      infraStorageClassName: {{ .infraStorageClassName | quote }}
-      {{- end }}
-
-  storageclass.yaml: |
-    {{- range .Values.storageClasses }}
-    ---
-    apiVersion: storage.k8s.io/v1
-    kind: StorageClass
-    metadata:
-      name: {{ .name }}
-      {{- if .isDefault }}
-      annotations:
-        storageclass.kubernetes.io/is-default-class: "true"
-      {{- end }}
-    provisioner: csi.kubevirt.io
-    parameters:
-      infraStorageClassName: {{ .infraStorageClassName | quote }}
-      bus: {{ .bus | default "scsi" | quote }}
-    {{- end }}
+# Chart templates live in definitions/charts/kubevirt-csi-driver/templates/
+# (controller.yaml, csidriver.yaml, rbac.yaml, node.yaml, storageclass.yaml,
+# snapshot-class.yaml, NOTES.txt).  No inline templates needed here.

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: kubevirt-csi-driver
+version: 0.1.0
+description: >
+  Tenant CSI driver that forwards PersistentVolumeClaims to host CDI DataVolumes
+  (kubevirt-csi pattern). Runs the controller in the tenant control plane and
+  the node plugin DaemonSet on every tenant worker node.
+keywords:
+  - storage
+  - csi
+  - kubevirt
+sources:
+  - https://github.com/kubevirt/csi-driver

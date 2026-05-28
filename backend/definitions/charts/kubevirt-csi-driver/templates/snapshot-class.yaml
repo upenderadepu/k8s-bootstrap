@@ -1,0 +1,16 @@
+{{- /*
+  VolumeSnapshotClass — only rendered when .Values.snapshots.enabled is true.
+  Requires the external-snapshotter CRDs to be installed separately.
+  Source: kubevirt/csi-driver deploy/tenant/base/deploy.yaml
+*/}}
+{{- if .Values.snapshots.enabled }}
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: kubevirt-csi-snapclass
+  labels:
+    app: kubevirt-csi-driver
+driver: csi.kubevirt.io
+deletionPolicy: Delete
+{{- end }}
