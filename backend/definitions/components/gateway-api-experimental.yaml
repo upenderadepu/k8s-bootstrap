@@ -19,37 +19,18 @@ priority: 5
 hidden: true
 docsUrl: https://gateway-api.sigs.k8s.io/
 
-# No Helm chart upstream — apply individual CRD manifests directly.
-chartType: manifest
+# CRDs vendored locally at `definitions/charts/gateway-api-experimental/crds/`.
+# `chartType: custom` + a bundled Chart.yaml triggers `manifest_chart_gen.copytree`
+# in repo_generator, which copies the whole chart directory (including the
+# `crds/` Helm-special subdir) into the workspace. The chart contents track
+# upstream gateway-api v1.5.1 — bump in lockstep when refreshing.
+chartType: custom
 namespace: gateway-system
 createNamespace: true
 timeout: 5m
 
 version: "1.5.1"
 appVersion: "v1.5.1"
-
-# Each entry below pulls a single CRD YAML from the upstream experimental channel.
-# The experimental channel at v1.5.1 is a superset of standard, so it carries the
-# extra fields some controllers (Kamaji, kube-ovn) rely on. We deliberately skip
-# the 5 standard-channel CRDs (gatewayclasses, gateways, grpcroutes, httproutes,
-# referencegrants) — Traefik owns those.
-manifests:
-  - name: backendtlspolicies-crd
-    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_backendtlspolicies.yaml
-  - name: listenersets-crd
-    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_listenersets.yaml
-  - name: tlsroutes-crd
-    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_tlsroutes.yaml
-  - name: tcproutes-crd
-    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_tcproutes.yaml
-  - name: udproutes-crd
-    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_udproutes.yaml
-  - name: vap-safeupgrades
-    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_vap_safeupgrades.yaml
-  - name: xbackendtrafficpolicies-crd
-    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.x-k8s.io_xbackendtrafficpolicies.yaml
-  - name: xmeshes-crd
-    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.x-k8s.io_xmeshes.yaml
 
 dependsOn: []
 

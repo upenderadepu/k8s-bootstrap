@@ -1,0 +1,30 @@
+apiVersion: v2
+name: gateway-api-experimental
+version: 1.5.1
+appVersion: "v1.5.1"
+description: |
+  Kubernetes Gateway API extras NOT bundled by Traefik 35.2.0.
+
+  Traefik 35.2.0 chart ships its own copy of standard channel CRDs
+  (gatewayclasses, gateways, grpcroutes, httproutes, referencegrants)
+  at bundle-version v1.2.1. This chart provides only the additional
+  CRDs Kamaji / kube-ovn / policy attachment rely on:
+
+    - backendtlspolicies          (TLS policy attachment)
+    - listenersets                (multi-listener gateways)
+    - tlsroutes                   (Kamaji konnectivity TCP passthrough)
+    - tcproutes / udproutes       (kube-ovn / Kamaji)
+    - vap_safeupgrades            (ValidatingAdmissionPolicy)
+    - xbackendtrafficpolicies     (experimental gateway.networking.x-k8s.io)
+    - xmeshes                     (experimental mesh routing)
+
+  Source: https://github.com/kubernetes-sigs/gateway-api/tree/v1.5.1/config/crd/experimental
+type: application
+home: https://gateway-api.sigs.k8s.io/
+sources:
+  - https://github.com/kubernetes-sigs/gateway-api
+keywords:
+  - gateway-api
+  - crds
+maintainers:
+  - name: k8s-bootstrap
