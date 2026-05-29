@@ -522,6 +522,9 @@ class RepoGenerator:
     
     def _generate_vendor_script(self, repo_path: Path, components: List[Dict[str, Any]]):
         """Generate vendor-charts.sh for chart vendoring."""
+        from app.generator.manifest_chart_generator import get_manifest_chart_generator
+        manifest_chart_gen = get_manifest_chart_generator()
+
         charts = []
         manifest_entries = []
 
@@ -540,8 +543,19 @@ class RepoGenerator:
             if defn.get("bootstrapInstall") or defn.get("chartType") == "custom":
                 continue
 
-            # Manifest-based components: collect raw URL fetches instead of helm pull
+            # Manifest-based components: collect raw URL fetches instead of helm pull.
+            # SKIP when a bundled chart exists under definitions/charts/<id>/ — those
+            # components have their manifests vendored in-tree and copytreed by
+            # manifest_chart_gen, so re-fetching the upstream URL would land the
+            # remote manifest alongside the bundled templates and Helm rejects
+            # duplicated resources (e.g. piraeus-operator-controller-manager
+            # ClusterRole present in both). Affected components are kubevirt-cdi,
+            # kubevirt-operator, piraeus-operator — bundled chart is authoritative;
+            # the URL field can be dropped from those component definitions, but
+            # this guard keeps the URL harmless if anyone forgets.
             if defn.get("chartType") == "manifest":
+                if manifest_chart_gen.has_bundled_chart(defn["id"]):
+                    continue
                 for entry in defn.get("manifests") or []:
                     if not entry.get("url"):
                         continue
