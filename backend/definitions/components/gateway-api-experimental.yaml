@@ -1,13 +1,16 @@
-# Gateway API (Experimental Channel)
-# Installs Gateway API CRDs + controller from the upstream experimental release manifest.
-# The experimental channel includes GatewayClass, Gateway, HTTPRoute, TCPRoute, TLSRoute,
-# GRPCRoute, and ReferenceGrant — all required for Kamaji TCP-passthrough routes when
-# Traefik / Contour Gateway API mode is used.
+# Gateway API — extras NOT bundled by Traefik
+# Traefik 35.2.0 ships standard channel CRDs (gatewayclasses, gateways, grpcroutes,
+# httproutes, referencegrants) embedded as `crds/gateway-standard-install.yaml`.
+# This component installs ONLY the additional CRDs Traefik does NOT bundle — those
+# are still required by Kamaji TCP-passthrough (TLSRoute), kube-ovn (other route
+# types), and policy attachment (BackendTLSPolicy). Pinned to upstream gateway-api
+# v1.5.1; CRD version sets (v1 / v1beta1) match what Traefik ships, so the two
+# installers don't fight over spec.versions.
 # Docs: https://gateway-api.sigs.k8s.io/
 
 id: gateway-api-experimental
-name: Gateway API (Experimental)
-description: Kubernetes Gateway API CRDs — experimental channel with TCPRoute/TLSRoute support required by Kamaji tenant ingress
+name: Gateway API (Extras)
+description: Kubernetes Gateway API CRDs not bundled by Traefik — TLSRoute, TCPRoute, UDPRoute, BackendTLSPolicy, plus ListenerSet / xBackendTrafficPolicy / xMesh experimental types.
 category: networking
 categoryName: Networking
 categoryDescription: CNI, ingress, and network policies
@@ -16,18 +19,37 @@ priority: 5
 hidden: true
 docsUrl: https://gateway-api.sigs.k8s.io/
 
-# No Helm chart upstream — apply the official release manifest directly
+# No Helm chart upstream — apply individual CRD manifests directly.
 chartType: manifest
 namespace: gateway-system
 createNamespace: true
 timeout: 5m
 
-version: "1.0.0"
-appVersion: "v1.0.0"
+version: "1.5.1"
+appVersion: "v1.5.1"
 
+# Each entry below pulls a single CRD YAML from the upstream experimental channel.
+# The experimental channel at v1.5.1 is a superset of standard, so it carries the
+# extra fields some controllers (Kamaji, kube-ovn) rely on. We deliberately skip
+# the 5 standard-channel CRDs (gatewayclasses, gateways, grpcroutes, httproutes,
+# referencegrants) — Traefik owns those.
 manifests:
-  - name: gateway-api-experimental
-    url: https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.0.0/experimental-install.yaml
+  - name: backendtlspolicies-crd
+    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_backendtlspolicies.yaml
+  - name: listenersets-crd
+    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_listenersets.yaml
+  - name: tlsroutes-crd
+    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_tlsroutes.yaml
+  - name: tcproutes-crd
+    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_tcproutes.yaml
+  - name: udproutes-crd
+    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_udproutes.yaml
+  - name: vap-safeupgrades
+    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.k8s.io_vap_safeupgrades.yaml
+  - name: xbackendtrafficpolicies-crd
+    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.x-k8s.io_xbackendtrafficpolicies.yaml
+  - name: xmeshes-crd
+    url: https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.5.1/config/crd/experimental/gateway.networking.x-k8s.io_xmeshes.yaml
 
 dependsOn: []
 
