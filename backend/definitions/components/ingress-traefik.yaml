@@ -58,6 +58,14 @@ defaultValues:
       exposedPort: 443
       expose:
         default: true
+      # Traefik 40+ moved per-entrypoint TLS config from `/ports/<name>/tls`
+      # to `/ports/<name>/http/tls`. Chart 40.2.0 schema rejects the old path
+      # (`additionalProperties: False` at the port level). Explicitly enable
+      # TLS at the new location so stale 35.2.0-style values can't sneak
+      # back through Flux upgrades.
+      http:
+        tls:
+          enabled: true
     # Dedicated TCP-passthrough entry point for tenant kube-apiservers.
     # kubevirt-ui creates an IngressRouteTCP per tenant that matches
     # HostSNI(`<tenant>.<ingress-domain>`) and forwards to the Kamaji
