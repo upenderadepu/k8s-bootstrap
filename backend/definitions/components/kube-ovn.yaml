@@ -229,3 +229,23 @@ templates:
           interval: 30s
     {{- end }}
     {{- end }}
+  vpc-dns-sa.yaml: |
+    # ServiceAccount that the kube-ovn VpcDns controller references when it
+    # spawns the per-VPC CoreDNS Deployment. Without it the ReplicaSet's
+    # `FailedCreate` event says `serviceaccount "vpc-dns" not found` and no
+    # VpcDns pods ever come up.
+    #
+    # The rest of the VpcDns prereqs (NAD `default/ovn-nad`, ConfigMap
+    # `vpc-dns-config`, ConfigMap `vpc-dns-corefile`) are created on-demand
+    # by kubevirt-ui's `vpcs.create_vpc` at first-VPC-creation time — they
+    # carry runtime-computed values (CoreDNS pod IPs in the Corefile, the
+    # autodiscovered `coredns-vip`) that bootstrap can't know. The SA is
+    # static so it ships here.
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: vpc-dns
+      namespace: o0-kube-ovn
+      labels:
+        app.kubernetes.io/managed-by: k8s-bootstrap
+        app.kubernetes.io/part-of: kube-ovn
