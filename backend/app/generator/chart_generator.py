@@ -61,8 +61,15 @@ class ChartGenerator:
         })
         self._yaml(path / "values.yaml", {})
 
+        # Wipe the templates dir before re-vendoring so stale files from an
+        # older chartType (e.g. a previously-custom chart that hand-rolled the
+        # daemonset + CRD) don't co-exist with the upstream manifest — that
+        # collision surfaces as Helm post-render `may not add resource with an
+        # already registered id` because the same CRD ends up in two templates.
         tpl = path / "templates"
-        tpl.mkdir(exist_ok=True)
+        if tpl.exists():
+            shutil.rmtree(tpl)
+        tpl.mkdir()
 
         manifests = defn.get("manifests") or []
         if not manifests:
