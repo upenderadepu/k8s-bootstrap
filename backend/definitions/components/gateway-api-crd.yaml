@@ -1,0 +1,35 @@
+# Gateway API — Standard channel CRDs (Traefik 40+ no longer bundles them)
+# Companion to `gateway-api-experimental` which carries the experimental-only kinds.
+# Docs: https://gateway-api.sigs.k8s.io/
+
+id: gateway-api-crd
+name: Gateway API (Standard CRDs)
+description: Kubernetes Gateway API standard channel CRDs — gatewayclasses, gateways, grpcroutes, httproutes, referencegrants. Required by Traefik 40+ which no longer bundles them.
+category: networking
+categoryName: Networking
+categoryDescription: CNI, ingress, and network policies
+icon: "🔀"
+priority: 5
+hidden: true
+docsUrl: https://gateway-api.sigs.k8s.io/
+
+# Vendored locally at definitions/charts/gateway-api-crd/ — repo_generator
+# detects the bundled Chart.yaml and copytrees the whole dir into the
+# workspace, so Helm picks up `crds/` without a runtime URL fetch.
+chartType: custom
+namespace: gateway-system
+createNamespace: true
+timeout: 5m
+
+version: "1.5.1"
+appVersion: "v1.5.1"
+
+dependsOn: []
+
+defaultValues: {}
+
+jsonSchema:
+  type: object
+  properties: {}
+
+uiSchema: {}

@@ -21,12 +21,18 @@ timeout: 5m
 upstream:
   repository: https://traefik.github.io/charts
   chartName: traefik
-  version: "35.2.0"
-  appVersion: "v3.2.3"
+  version: "40.2.0"
+  appVersion: "v3.6.0"
 
 # Dependencies
+# Traefik 40+ no longer bundles Gateway API standard CRDs — depend on
+# the dedicated gateway-api-crd component so they exist before Traefik
+# tries to use them. gateway-api-experimental provides the additional
+# kinds Kamaji needs (TLSRoute etc.).
 dependsOn:
   - namespaces
+  - gateway-api-crd
+  - gateway-api-experimental
 
 # Default values
 defaultValues:

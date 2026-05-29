@@ -1,0 +1,33 @@
+apiVersion: v2
+name: gateway-api-crd
+version: 1.5.1
+appVersion: "v1.5.1"
+description: |
+  Kubernetes Gateway API standard channel CRDs.
+
+  Traefik 40+ no longer bundles its own copy of these (35.2.0 used to ship
+  `crds/gateway-standard-install.yaml`); this chart vendors them directly
+  so any consumer — Traefik, Contour, Cilium Gateway, Kamaji — can find
+  the CRDs without each chart racing to install its own copy.
+
+  Includes the 5 standard-channel kinds:
+    - gatewayclasses
+    - gateways
+    - grpcroutes
+    - httproutes
+    - referencegrants
+
+  Experimental-only kinds (TLSRoute, TCPRoute, UDPRoute, BackendTLSPolicy,
+  ListenerSet, x-k8s.io extensions) live in the sibling
+  `gateway-api-experimental` chart.
+
+  Source: https://github.com/kubernetes-sigs/gateway-api/tree/v1.5.1/config/crd/standard
+type: application
+home: https://gateway-api.sigs.k8s.io/
+sources:
+  - https://github.com/kubernetes-sigs/gateway-api
+keywords:
+  - gateway-api
+  - crds
+maintainers:
+  - name: k8s-bootstrap
