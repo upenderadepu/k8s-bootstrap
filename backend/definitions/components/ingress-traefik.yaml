@@ -22,7 +22,7 @@ upstream:
   repository: https://traefik.github.io/charts
   chartName: traefik
   version: "40.2.0"
-  appVersion: "v3.6.0"
+  appVersion: "v3.7.1"
 
 # Dependencies
 # Traefik 40+ no longer bundles Gateway API standard CRDs — depend on
