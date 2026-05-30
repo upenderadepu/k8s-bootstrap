@@ -34,6 +34,12 @@ components:
     required: true
     description: Multiple network interfaces for VMs
 
+  # === Policy engine (Kyverno) — required for in-VPC pod DNS injection ===
+  - id: kyverno
+    required: false
+    default_enabled: true
+    description: Policy engine — kubevirt-ui creates per-VPC ClusterPolicies that inject VpcDns into pods landing on custom VPC overlays
+
   # === Cluster DNS (required for empty clusters) ===
   - id: coredns
     required: true
@@ -555,6 +561,9 @@ install_order:
   - multus-cni
   # Cluster DNS (after CNI, before everything that needs DNS)
   - coredns
+  # Policy engine (Kyverno) — before KubeVirt + kubevirt-ui so the
+  # per-VPC ClusterPolicies kubevirt-ui creates have an engine to land on.
+  - kyverno
   # Load Balancer & Ingress
   - metallb
   - metallb-config
