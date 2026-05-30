@@ -1,0 +1,117 @@
+# Kyverno Component Definition
+# Kubernetes-native policy engine. Used here primarily to inject
+# dnsPolicy/dnsConfig into pods landing on a kube-ovn custom VPC overlay
+# so they can reach the per-VPC VpcDns VIP instead of the unreachable
+# cluster CoreDNS ClusterIP. The actual ClusterPolicy resources are
+# created at VPC/VpcDns create time by kubevirt-ui, not here.
+
+id: kyverno
+name: Kyverno
+description: Kubernetes-native policy management — validation, mutation, generation and image verification via declarative policies
+category: security
+categoryName: Security
+categoryDescription: Security and certificate management
+icon: "🛡️"
+priority: 15
+docsUrl: https://kyverno.io/docs/
+
+chartType: upstream
+namespace: o0-kyverno
+releaseName: kyverno
+createNamespace: true
+timeout: 10m
+
+upstream:
+  repository: https://kyverno.github.io/kyverno/
+  chartName: kyverno
+  version: "3.4.0"
+  appVersion: "1.13.0"
+
+dependsOn:
+  - namespaces
+
+# Defaults tuned for dev clusters:
+#   - single replica per controller (no HA),
+#   - admission webhook failurePolicy=Ignore so a Kyverno outage doesn't
+#     block pod create cluster-wide — strict mode is opt-in via the form,
+#   - background/reports controllers stay enabled (cheap, useful for
+#     policy audit visibility),
+#   - cleanup controller stays enabled (needed by future GC policies).
+defaultValues:
+  admissionController:
+    replicas: 1
+    failurePolicy: Ignore
+  backgroundController:
+    replicas: 1
+  cleanupController:
+    replicas: 1
+  reportsController:
+    replicas: 1
+  features:
+    admissionReports:
+      enabled: true
+    policyReports:
+      enabled: true
+
+jsonSchema:
+  type: object
+  properties:
+    admissionController:
+      type: object
+      title: Admission Controller
+      properties:
+        replicas:
+          type: integer
+          title: Replicas
+          description: Number of admission controller replicas (3+ for HA)
+          minimum: 1
+          maximum: 5
+          default: 1
+        failurePolicy:
+          type: string
+          title: Webhook Failure Policy
+          description: "Ignore = a Kyverno outage doesn't block pod create. Fail = strict enforcement."
+          enum: [Ignore, Fail]
+          default: Ignore
+    backgroundController:
+      type: object
+      title: Background Controller
+      properties:
+        replicas:
+          type: integer
+          title: Replicas
+          minimum: 1
+          maximum: 3
+          default: 1
+    cleanupController:
+      type: object
+      title: Cleanup Controller
+      properties:
+        replicas:
+          type: integer
+          title: Replicas
+          minimum: 1
+          maximum: 3
+          default: 1
+    reportsController:
+      type: object
+      title: Reports Controller
+      properties:
+        replicas:
+          type: integer
+          title: Replicas
+          minimum: 1
+          maximum: 3
+          default: 1
+
+uiSchema:
+  admissionController:
+    failurePolicy:
+      ui:widget: select
+      ui:help: "Switch to Fail only after verifying policies don't reject legitimate workloads"
+  backgroundController:
+    ui:collapsed: true
+  cleanupController:
+    ui:collapsed: true
+  reportsController:
+    ui:collapsed: true
